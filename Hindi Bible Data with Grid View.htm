@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="mr">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>बाइबल पढ़ने की योजना</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        header {
+            background-color: #0a3f7c;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .month-view {
+            display: none;
+        }
+
+        .month-view.active {
+            display: block;
+        }
+
+        .month-title {
+            text-align: center;
+            font-size: 1.5rem;
+            background-color: #0a3f7c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .weekday-header {
+            text-align: center;
+            padding: 10px;
+            background-color: #0a3f7c;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+
+        .date-cell {
+            padding: 10px;
+            min-height: 80px;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .date-cell.has-reading {
+            cursor: pointer;
+        }
+
+        .date-number {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .reading-content {
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            background-color: #0a3f7c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .nav-button:hover {
+            background-color: #0d4f9a;
+        }
+
+        .current-month-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0a3f7c;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-grid {
+                gap: 5px;
+            }
+
+            .date-cell {
+                padding: 5px;
+                min-height: 60px;
+                font-size: 0.8em;
+            }
+
+            .weekday-header {
+                padding: 5px;
+                font-size: 0.8em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>बाइबल पढ़ने की योजना</h1>
+        <p>एक साल में पूरी बाइबल पढ़ें</p>
+    </header>
+
+    <div class="container">
+        <div class="nav-buttons">
+            <button class="nav-button" onclick="prevMonth()">← पिछला महीना</button>
+            <span class="current-month-display" id="currentMonth"></span>
+            <button class="nav-button" onclick="nextMonth()">अगला महीना →</button>
+        </div>
+
+        <div id="calendarContainer"></div>
+    </div>
+
+    <script>
+        const months = [
+            "जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून",
+            "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"
+        ];
+
+        const weekdays = ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"];
+
+        const bibleReadings = {
+            1: { // January
+                1: "उत्प 1-2, मत्त 1",
+                2: "निर् 17-19, मत्त 20",
+                3: "निर् 15-16",
+                4: "निर् 13-14, मत्त 19",
+                5: "निर् 12, मत्त 18",
+                6: "निर् 9-11",
+                7: "निर् 8, मत्त 17",
+                8: "निर् 5-7, मत्त 16",
+                9: "निर् 3-4",
+                10: "उत्प 50, निर् 1-2, मत्त 15",
+                11: "उत्प 46-47",
+                12: "उत्प 44-45, मत्त 13",
+                13: "उत्प 42-43",
+                14: "उत्प 40-41",
+                15: "उत्प 38-39, मत्त 12",
+                16: "उत्प 48-49, मत्त 14",
+                17: "उत्प 34-35, मत्त 11",
+                18: "उत्प 3-5, मत्त 2",
+                19: "उत्प 36-37",
+                20: "उत्प 9-11, मत्त 4",
+                21: "उत्प 12-14",
+                22: "उत्प 15-17, मत्त 5",
+                23: "उत्प 18-19",
+                24: "उत्प 20-22, मत्त 6",
+                25: "उत्प 6-8, मत्त 3",
+                26: "उत्प 25",
+                27: "उत्प 26-27, मत्त 8",
+                28: "उत्प 28-29, मत्त 9",
+                29: "उत्प 30-31",
+                30: "उत्प 32-33, मत्त 10",
+                31: "उत्प 23-24, मत्त 7"
+            }
+
+
+            // Add other months here
+        };
+
+        let currentMonthIndex = new Date().getMonth();
+
+        function createCalendar(monthIndex) {
+            const container = document.getElementById('calendarContainer');
+            container.innerHTML = '';
+
+            const monthView = document.createElement('div');
+            monthView.className = 'month-view active';
+
+            // Create calendar grid
+            const grid = document.createElement('div');
+            grid.className = 'calendar-grid';
+
+            // Add weekday headers
+            weekdays.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'weekday-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+            const bibleReadings = {
+                1: { // January
+                    1: "उत्प 1-2, मत्त 1",
+                    2: "निर् 17-19, मत्त 20",
+                    3: "निर् 15-16",
+                    4: "निर् 13-14, मत्त 19",
+                    5: "निर् 12, मत्त 18",
+                    6: "निर् 9-11",
+                    7: "निर् 8, मत्त 17",
+                    8: "निर् 5-7, मत्त 16",
+                    9: "निर् 3-4",
+                    10: "उत्प 50, निर् 1-2, मत्त 15",
+                    11: "उत्प 46-47",
+                    12: "उत्प 44-45, मत्त 13",
+                    13: "उत्प 42-43",
+                    14: "उत्प 40-41",
+                    15: "उत्प 38-39, मत्त 12",
+                    16: "उत्प 48-49, मत्त 14",
+                    17: "उत्प 34-35, मत्त 11",
+                    18: "उत्प 3-5, मत्त 2",
+                    19: "उत्प 36-37",
+                    20: "उत्प 9-11, मत्त 4",
+                    21: "उत्प 12-14",
+                    22: "उत्प 15-17, मत्त 5",
+                    23: "उत्प 18-19",
+                    24: "उत्प 20-22, मत्त 6",
+                    25: "उत्प 6-8, मत्त 3",
+                    26: "उत्प 25",
+                    27: "उत्प 26-27, मत्त 8",
+                    28: "उत्प 28-29, मत्त 9",
+                    29: "उत्प 30-31",
+                    30: "उत्प 32-33, मत्त 10",
+                    31: "उत्प 23-24, मत्त 7"
+                    // ... existing January entries
+                },
+                2: { // February
+                    1: "निर् 20-22, मत्त 21",
+                    2: "निर् 23-24, मत्त 22",
+                    3: "निर् 25-26, मत्त 23",
+                    4: "निर् 27-28, मत्त 24",
+                    5: "निर् 29-30, मत्त 25",
+                    6: "निर् 31-32, मत्त 26",
+                    7: "निर् 33-34, मत्त 27",
+                    8: "निर् 35-36, मत्त 28",
+                    9: "निर् 37-38, मरकुस 1",
+                    10: "निर् 39-40, मरकुस 2",
+                    11: "लैव्य 1-3, मरकुस 3",
+                    12: "लैव्य 4-5, मरकुस 4",
+                    13: "लैव्य 6-7, मरकुस 5",
+                    14: "लैव्य 8-10, मरकुस 6",
+                    15: "लैव्य 11-12, मरकुस 7",
+                    16: "लैव्य 13, मरकुस 8",
+                    17: "लैव्य 14, मरकुस 9",
+                    18: "लैव्य 15-16, मरकुस 10",
+                    19: "लैव्य 17-18, मरकुस 11",
+                    20: "लैव्य 19-20, मरकुस 12",
+                    21: "लैव्य 21-22, मरकुस 13",
+                    22: "लैव्य 23-24, मरकुस 14",
+                    23: "लैव्य 25, मरकुस 15",
+                    24: "लैव्य 26-27, मरकुस 16",
+                    25: "गिनती 1-2, लूका 1",
+                    26: "गिनती 3-4, लूका 2",
+                    27: "गिनती 5-6, लूका 3",
+                    28: "गिनती 7, लूका 4",
+                    29: "गिनती 8-9, लूका 5"
+                },
+                3: { // March
+                    1: "गिनती 10-11, लूका 6",
+                    2: "गिनती 12-13, लूका 7",
+                    3: "गिनती 14-15, लूका 8",
+                    4: "गिनती 16-17, लूका 9",
+                    5: "गिनती 18-19, लूका 10",
+                    6: "व्यव 11; लूका 2",
+                    7: "व्यव 17-18",
+                    8: "व्यव 15-16; लूका 3",
+                    9: "व्यव 28; लूका 6",
+                    10: "व्यव 19-21; लूका 4",
+                    11: "व्यव 22-23",
+                    12: "व्यव 24-25; लूका 5",
+                    13: "गिनत 35-36; मरकु 15",
+                    14: "व्यव 12-14",
+                    15: "व्यव 26-27",
+                    16: "गिनत 33-34",
+                    17: "गिनत 30-31",
+                    18: "गिनत 32; मरकु 14",
+                    19: "गिनत 5-6; मरकु 7",
+                    20: "गिनत 7; मरकु 8",
+                    21: "गिनत 8-9",
+                    22: "गिनत 12-13",
+                    23: "गिनत 14-15",
+                    24: "गिनत 10-11; मरकु 9",
+                    25: "गिनत 18-19",
+                    26: "गिनत 20-21; मरकु 11",
+                    27: "गिनत 22; मरकु 12",
+                    28: "गिनत 23-25",
+                    29: "गिनत 26-27; मरकु 13",
+                    30: "गिनत 28-29",
+                    31: "गिनत 16-17; मरकु 10"
+
+
+                    // ... continue with March entries
+                },
+
+                4: { // April
+                    1: "न्या 14-15",
+                    2: "न्या 7-8; लूका 13",
+                    3: "न्या 9",
+                    4: "न्या 10-11; लूका 14",
+                    5: "न्या 12-13; लूका 15",
+                    6: "न्या 16-18; लूका 16",
+                    7: "न्या 5-6",
+                    8: "न्या 20",
+                    9: "न्या 21; रूत 1-2; लूका 18",
+                    10: "रूत 3-4",
+                    11: "1 शम 1-2; लूका 19",
+                    12: "1 शम 3-5",
+                    13: "1 शम 6-8; लूका 20",
+                    14: "न्या 19; लूका 17",
+                    15: "न्या 3-4; लूका 12",
+                    16: "यहोश 10; लूका 9",
+                    17: "यहोश 23-24",
+                    18: "व्यव 29-30",
+                    19: "व्यव 31-32",
+                    20: "व्यव 33-34; लूका 7",
+                    21: "यहोश 1-3",
+                    22: "यहोश 7",
+                    23: "यहोश 8-9",
+                    24: "यहोश 4-6; लूका 8",
+                    25: "यहोश 11-13",
+                    26: "यहोश 14-16",
+                    27: "यहोश 17-18; लूका 10",
+                    28: "यहोश 19-21",
+                    29: "यहोश 22; लूका 11",
+                    30: "न्या 1-2"
+                },
+
+                5: { // May
+                    1: "2 शम 20; यूहन 7",
+                    2: "2 शम 13-14",
+                    3: "2 शम 15",
+                    4: "2 शम 16-17; यूहन 6",
+                    5: "2 शम 18-19",
+                    6: "2 शम 21-22",
+                    7: "1 रा 8; यूहन 11",
+                    8: "1 रा 1; यूहन 8",
+                    9: "1 रा 2",
+                    10: "1 रा 3-5; यूहन 9",
+                    11: "1 रा 6; यूहन 10",
+                    12: "1 रा 7",
+                    13: "2 शम 11-12; यूहन 5",
+                    14: "2 शम 23-24",
+                    15: "2 शम 8-10",
+                    16: "1 रा 9-10",
+                    17: "2 शम 4-5",
+                    18: "1 शम 9-10; लूका 21",
+                    19: "1 शम 11-12",
+                    20: "1 शम 13-14",
+                    21: "1 शम 15; लूका 22",
+                    22: "1 शम 16-17",
+                    23: "1 शम 18-19; लूका 23",
+                    24: "2 शम 6-7; यूहन 4",
+                    25: "1 शम 21-23; लूका 24",
+                    26: "1 शम 24-25",
+                    27: "1 शम 26; यूहन 1",
+                    28: "1 शम 27-29",
+                    29: "1 शम 30-31; 2 शम 1; यूहन 2",
+                    30: "2 शम 2-3; यूहन 3",
+                    31: "1 शम 20"
+                },
+
+                6: { // June
+                    1: "2 रा 16-17",
+                    2: "2 रा 18; प्रे 1",
+                    3: "2 रा 19-20",
+                    4: "2 रा 21-22; प्रे 2",
+                    5: "2 रा 23-24; प्रे 3",
+                    6: "2 रा 25; 1 इत 1",
+                    7: "1 इत 8-9; प्रे 6",
+                    8: "1 इत 4-5",
+                    9: "1 इत 6-7; प्रे 5",
+                    10: "1 इत 10-11",
+                    11: "1 इत 12-14; प्रे 7",
+                    12: "1 इत 15-16",
+                    13: "2 रा 14-15; यूहन 21",
+                    14: "1 इत 2-3; प्रे 4",
+                    15: "1 इत 17-20; प्रे 8",
+                    16: "2 रा 12-13; यूहन 20",
+                    17: "2 रा 9; यूहन 19",
+                    18: "2 रा 10-11",
+                    19: "1 रा 11-12",
+                    20: "1 रा 13; यूहन 12",
+                    21: "1 रा 14-15",
+                    22: "1 रा 18; यूहन 14",
+                    23: "1 रा 19-20",
+                    24: "1 रा 16-17; यूहन 13",
+                    25: "1 रा 22; 2 रा 1; यूहन 16",
+                    26: "2 रा 2-3",
+                    27: "2 रा 4; यूहन 17",
+                    28: "2 रा 5-6; यूहन 18",
+                    29: "2 रा 7-8",
+                    30: "1 रा 21; यूहन 15"
+                },
+
+                7: { // July
+                    1: "एज्र 7; प्रे 21",
+                    2: "2 इत 34; प्रे 19",
+                    3: "2 इत 35-36; एज्र 1",
+                    4: "एज्र 2-3; प्रे 20",
+                    5: "एज्र 4-6",
+                    6: "एज्र 8-10",
+                    7: "नहेम 13; एस्त 1; प्रे 26",
+                    8: "नहेम 3-4",
+                    9: "नहेम 5-7; प्रे 23",
+                    10: "नहेम 8; प्रे 24",
+                    11: "नहेम 9-10",
+                    12: "नहेम 11-12; प्रे 25",
+                    13: "2 इत 32-33; प्रे 18",
+                    14: "नहेम 1-2; प्रे 22",
+                    15: "2 इत 30-31",
+                    16: "1 इत 23-25; प्रे 9",
+                    17: "2 इत 26-28",
+                    18: "2 इत 29; प्रे 17",
+                    19: "1 इत 26-27",
+                    20: "1 इत 28-29; प्रे 10",
+                    21: "2 इत 1-3",
+                    22: "2 इत 4-5; प्रे 11",
+                    23: "2 इत 6-7; प्रे 12",
+                    24: "1 इत 21-22",
+                    25: "2 इत 10-13; प्रे 13",
+                    26: "2 इत 14-16",
+                    27: "2 इत 17-18; प्रे 14",
+                    28: "2 इत 19-21; प्रे 15",
+                    29: "2 इत 22-23",
+                    30: "2 इत 24-25; प्रे 16",
+                    31: "2 इत 8-9"
+                },
+
+                8: { // August
+                    1: "भजन 22-27; रोमि 11",
+                    2: "भजन 28-33; रोमि 12",
+                    3: "भजन 34-37; रोमि 13",
+                    4: "भजन 38-41; रोमि 14",
+                    5: "भजन 42-48; रोमि 15",
+                    6: "भजन 49-54",
+                    7: "भजन 72-76; 1 कु 3",
+                    8: "भजन 61-67; 1 कु 1",
+                    9: "भजन 68-71; 1 कु 2",
+                    10: "भजन 77-78; 1 कु 4",
+                    11: "भजन 79-85; 1 कु 5-6",
+                    12: "भजन 86-89",
+                    13: "भजन 18-21; रोमि 10",
+                    14: "भजन 55-60; रोमि 16",
+                    15: "भजन 9-17; रोमि 9",
+                    16: "भजन 90-96; 1 कु 7",
+                    17: "अय्य 39-42; भजन 1; रोमि 8",
+                    18: "एस्त 2-4",
+                    19: "एस्त 5-7; प्रे 27",
+                    20: "एस्त 8-10",
+                    21: "अय्य 1-4; प्रे 28",
+                    22: "अय्य 5-8; रोमि 1",
+                    23: "अय्य 9-12",
+                    24: "भजन 2-8",
+                    25: "अय्य 17-20; रोमि 3",
+                    26: "अय्य 21-24; रोमि 4",
+                    27: "अय्य 25-29; रोमि 5",
+                    28: "अय्य 30-32; रोमि 6",
+                    29: "अय्य 33-35; रोमि 7",
+                    30: "अय्य 36-38",
+                    31: "अय्य 13-16; रोमि 2"
+                },
+
+                9: { // September
+                    1: "नीति 26-29; 2 कु 5",
+                    2: "नीति 30-31; सभोप 1; 2 कु 6",
+                    3: "सभोप 2-4; 2 कु 7",
+                    4: "सभोप 5-7; 2 कु 8",
+                    5: "सभोप 8-11; 2 कु 9-10",
+                    6: "सभोप 12; श्रे 1-4",
+                    7: "यशाय 8-9; गलात 1",
+                    8: "यशाय 2-4; 2 कु 12",
+                    9: "यशाय 5-7; 2 कु 13",
+                    10: "यशाय 10-13; गलात 2",
+                    11: "यशाय 14-16; गलात 3",
+                    12: "यशाय 17-20; गलात 4",
+                    13: "नीति 23-25; 2 कु 4",
+                    14: "श्रे 5-8; यशाय 1; 2 कु 11",
+                    15: "यशाय 21-23",
+                    16: "नीति 20-22; 2 कु 3",
+                    17: "नीति 13-15; 2 कु 1",
+                    18: "नीति 16-19; 2 कु 2",
+                    19: "भजन 97-103; 1 कु 8",
+                    20: "भजन 104-106; 1 कु 9",
+                    21: "भजन 107-109",
+                    22: "भजन 119; 1 कु 11",
+                    23: "भजन 120-127; 1 कु 12",
+                    24: "भजन 110-118; 1 कु 10",
+                    25: "भजन 138-144; 1 कु 14",
+                    26: "भजन 145-150; नीति 1",
+                    27: "नीति 2-5",
+                    28: "नीति 6-8; 1 कु 15",
+                    29: "नीति 9-12; 1 कु 16",
+                    30: "भजन 128-137; 1 कु 13"
+                },
+                10: { // October
+                    1: "यिर् 16-17; 2 थि 3; 1 ती 1",
+                    2: "यिर् 7-8; 1 थि 3",
+                    3: "यिर् 9-10; 1 थि 4-5",
+                    4: "यिर् 11-13; 2 थि 1",
+                    5: "यिर् 14-15; 2 थि 2",
+                    6: "यिर् 33; 2 ती 4; तीतु 1",
+                    7: "यिर् 31-32; 2 ती 3",
+                    8: "यिर् 21-22; 1 ती 3-4",
+                    9: "यिर् 23-25; 1 ती 5",
+                    10: "यिर् 26; 1 ती 6",
+                    11: "यिर् 27-29; 2 ती 1",
+                    12: "यिर् 30; 2 ती 2",
+                    13: "यिर् 5-6; 1 थि 2",
+                    14: "यिर् 18-20; 1 ती 2",
+                    15: "यिर् 3-4; कुलु 4; 1 थि 1",
+                    16: "यशाय 44-45; इफिस 6",
+                    17: "यशाय 65-66; कुलु 2",
+                    18: "यशाय 24-27; गलात 5-6",
+                    19: "यशाय 28-29; इफिस 1",
+                    20: "यशाय 30-32; इफिस 2",
+                    21: "यशाय 33-35; इफिस 3",
+                    22: "यशाय 38-40",
+                    23: "यशाय 41-43; इफिस 5",
+                    24: "यशाय 36-37; इफिस 4",
+                    25: "यशाय 49-50; फिलि 2",
+                    26: "यशाय 51-54; फिलि 3",
+                    27: "यशाय 55-57; फिलि 4",
+                    28: "यशाय 58-60",
+                    29: "यशाय 61-64; कुलु 1",
+                    30: "यशाय 46-48; फिलि 1",
+                    31: "यिर् 1-2; कुलु 3"
+                },
+
+                11: { // November
+                    1: "यहेज 21-22",
+                    2: "यहेज 14-15; याकू 1",
+                    3: "यहेज 16-17; याकू 2",
+                    4: "यहेज 18-19; याकू 3",
+                    5: "यहेज 20; याकू 4-5",
+                    6: "यहेज 37; 2 पत 3; 1 यू 1",
+                    7: "यहेज 27-28; 1 पत 3",
+                    8: "यहेज 29-30; 1 पत 4",
+                    9: "यहेज 31-32; 1 पत 5; 2 पत 1",
+                    10: "यहेज 33",
+                    11: "यहेज 34-36; 2 पत 2",
+                    12: "यहेज 12-13; इब्र 13",
+                    13: "यहेज 24-26; 1 पत 2",
+                    14: "यहेज 9-11",
+                    15: "यहेज 23; 1 पत 1",
+                    16: "यहेज 4-6; इब्र 11",
+                    17: "यिर् 34-35; तीतु 2",
+                    18: "यिर् 36-37; तीतु 3; फिले",
+                    19: "यिर् 38-40; इब्र 1",
+                    20: "यिर् 41-42; इब्र 2",
+                    21: "यहेज 7-8; इब्र 12",
+                    22: "यिर् 45-47; इब्र 4-5",
+                    23: "यिर् 43-44; इब्र 3",
+                    24: "यिर् 50; इब्र 7",
+                    25: "यिर् 51; इब्र 8",
+                    26: "यिर् 52; इब्र 9",
+                    27: "विला 1-2",
+                    28: "विला 3-5; इब्र 10",
+                    29: "यहेज 1-3",
+                    30: "यिर् 48-49; इब्र 6"
+                },
+
+                12: { // December
+                    1: "योएल 3; आमोस 1-2; प्रक 10",
+                    2: "आमोस 3-6; प्रक 11",
+                    3: "आमोस 7-9; प्रक 12",
+                    4: "ओबद्; योना 1-3; प्रक 13",
+                    5: "योना 4; मीका 1-4; प्रक 14",
+                    6: "जकर् 9-11",
+                    7: "नहूम 1-3; हबक् 1; प्रक 16",
+                    8: "हबक् 2-3; सपन् 1; प्रक 17",
+                    9: "सपन् 2-3; हाग् 1-2; प्रक 18",
+                    10: "जकर् 1-3; प्रक 19",
+                    11: "जकर् 4-8; प्रक 20",
+                    12: "होशे 14; योएल 1-2; प्रक 9",
+                    13: "मीका 5-7; प्रक 15",
+                    14: "होशे 9-13; प्रक 8",
+                    15: "दानि 3; प्रक 1",
+                    16: "होशे 1-4; प्रक 6",
+                    17: "दानि 11-12; प्रक 5",
+                    18: "दानि 9-10; प्रक 4",
+                    19: "दानि 7-8; प्रक 3",
+                    20: "दानि 6; प्रक 2",
+                    21: "दानि 4-5",
+                    22: "दानि 1-2; यहूद",
+                    23: "यहेज 47-48; 2 यू; 3 यू",
+                    24: "यहेज 45-46; 1 यू 5",
+                    25: "यहेज 44; 1 यू 4",
+                    26: "यहेज 41-43; 1 यू 3",
+                    27: "यहेज 40",
+                    28: "यहेज 38-39; 1 यू 2",
+                    29: "जकर् 12-14; प्रक 21",
+                    30: "होशे 5-8; प्रक 7",
+                    31: "मलाक 1-4; प्रक 22"
+                }
+
+
+
+
+                // Continue with other months...
+            };
+
+            // Helper function to validate readings data
+            function validateReadings() {
+                for (let month = 1; month <= 12; month++) {
+                    if (!bibleReadings[month]) {
+                        console.warn(`Missing data for month ${month}`);
+                        continue;
+                    }
+
+                    const daysInMonth = new Date(2024, month, 0).getDate();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        if (!bibleReadings[month][day]) {
+                            console.warn(`Missing reading for month ${month}, day ${day}`);
+                        }
+                    }
+                }
+            }
+
+            // Modify the createCalendar function to handle missing data gracefully
+            function createCalendar(monthIndex) {
+                // ... existing code ...
+
+                const monthReadings = bibleReadings[monthIndex + 1] || {};
+                const dayNumbers = Array.from({ length: totalDays }, (_, i) => i + 1);
+
+                const daysHTML = dayNumbers.map(day => {
+                    const reading = monthReadings[day];
+                    const cellClass = reading ? 'date-cell has-reading' : 'date-cell';
+                    const backgroundColor = day % 2 === 0 ? '#e6ffe6' : '#f0f8ff';
+
+                    return `
+            <div class="${cellClass}" style="background-color: ${backgroundColor}">
+                <div class="date-number">${day} दिन</div>
+                ${reading ? `
+                    <div class="reading-content">
+                        <input type="checkbox" 
+                               id="reading-${monthIndex + 1}-${day}"
+                               ${localStorage.getItem(`reading-${monthIndex + 1}-${day}`) === 'true' ? 'checked' : ''}>
+                        ${reading}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+                }).join('');
+
+                // ... rest of the code ...
+            }
+
+            // Add this to your initialization code
+            document.addEventListener('DOMContentLoaded', () => {
+                validateReadings(); // Check for missing data
+                currentMonthIndex = new Date().getMonth();
+                createCalendar(currentMonthIndex);
+            });
+            // Calculate first day of month and total days
+            const firstDay = new Date(2025, monthIndex, 1).getDay();
+            const totalDays = new Date(2025, monthIndex + 1, 0).getDate();
+
+            // Add empty cells for days before start of month
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'date-cell';
+                grid.appendChild(emptyCell);
+            }
+
+            // Add days
+            for (let day = 1; day <= totalDays; day++) {
+                const cell = document.createElement('div');
+                cell.className = 'date-cell';
+                cell.style.backgroundColor = day % 2 === 0 ? '#e6ffe6' : '#f0f8ff';
+
+                const dateNumber = document.createElement('div');
+                dateNumber.className = 'date-number';
+                dateNumber.textContent = `${day} `;
+                cell.appendChild(dateNumber);
+
+                if (bibleReadings[monthIndex + 1] && bibleReadings[monthIndex + 1][day]) {
+                    const reading = document.createElement('div');
+                    reading.className = 'reading-content';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `reading-${monthIndex + 1}-${day}`;
+                    checkbox.checked = localStorage.getItem(`reading-${monthIndex + 1}-${day}`) === 'true';
+                    checkbox.addEventListener('change', (e) => {
+                        localStorage.setItem(`reading-${monthIndex + 1}-${day}`, e.target.checked);
+                    });
+
+                    reading.appendChild(checkbox);
+                    reading.appendChild(document.createTextNode(` ${bibleReadings[monthIndex + 1][day]}`));
+                    cell.appendChild(reading);
+                    cell.classList.add('has-reading');
+                }
+
+                grid.appendChild(cell);
+            }
+
+            monthView.appendChild(grid);
+            container.appendChild(monthView);
+            updateMonthDisplay();
+        }
+
+        function updateMonthDisplay() {
+            document.getElementById('currentMonth').textContent = months[currentMonthIndex];
+        }
+
+        function nextMonth() {
+            currentMonthIndex = (currentMonthIndex + 1) % 12;
+            createCalendar(currentMonthIndex);
+        }
+
+        function prevMonth() {
+            currentMonthIndex = (currentMonthIndex - 1 + 12) % 12;
+            createCalendar(currentMonthIndex);
+        }
+
+        // Initialize calendar
+        document.addEventListener('DOMContentLoaded', () => {
+            createCalendar(currentMonthIndex);
+        });
+    </script>
+</body>
+
+</html>
